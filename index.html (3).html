@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <!-- 確保在手機平板上全螢幕且不可縮放 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>幼兒運筆遊戲 - 過獨木橋</title>
+    <style>
+        /* 重置預設樣式並防止誤觸拉動與反白 */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #e0f7fa;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', '微軟正黑體', sans-serif;
+            overflow: hidden; /* 防止滾動 */
+            touch-action: none; /* 防止觸控螢幕滑動 */
+        }
+
+        /* 遊戲主容器 */
+        #game-container {
+            position: relative;
+            width: 90vw;
+            max-width: 900px;
+            height: 60vh;
+            max-height: 500px;
+            background-color: #ffffff;
+            border-radius: 30px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            border: 8px solid #ffcc80;
+        }
+
+        /* 進度顯示 */
+        #progress {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #5d4037;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        /* 遊戲場景 */
+        #scene {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10%;
+            pointer-events: none; /* 讓點擊事件穿透到下方的 Canvas */
+        }
+
+        /* 獨木橋設計 */
+        #bridge {
+            position: absolute;
+            left: 15%;
+            right: 15%;
+            height: 60px;
+            background: linear-gradient(to bottom, #8d6e63, #5d4037);
+            top: 50%;
+            transform: translateY(-50%);
+            border-radius: 10px;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        }
+
+        /* 角色與目標物 */
+        .entity {
+            font-size: 70px;
+            z-index: 5;
+            position: relative;
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3));
+        }
+
+        /* 提示閃爍動畫 */
+        .blink {
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 畫布 */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            cursor: crosshair;
+            touch-action: none; /* 關鍵：防止畫線時滾動網頁 */
+        }
+
+        /* 彈出視窗 (過關與最終完成) */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            border-radius: 22px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .overlay h1 {
+            font-size: 48px;
+            color: #ff5722;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 0px #ffe0b2;
+        }
+
+        .overlay button {
+            padding: 15px 40px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            background-color: #4caf50;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 15px rgba(76, 175, 80, 0.3);
+            transition: transform 0.1s;
+        }
+
+        .overlay button:active {
+            transform: scale(0.95);
+        }
+
+        /* 成功小提示 */
+        #success-tick {
+            font-size: 100px;
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 25;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="progress">進度: 1 / 3</div>
+        
+        <div id="scene">
+            <div id="bridge"></div>
+            <!-- 左側角色 -->
+            <div id="character" class="entity blink">🐱</div>
+            <!-- 右側目標 -->
+            <div id="target" class="entity">🐟</div>
+        </div>
+
+        <canvas id="drawing-canvas"></canvas>
+
+        <div id="success-tick">✅</div>
+
+        <!-- 最終完成視窗 -->
+        <div id="end-screen" class="overlay">
+            <h1>✨ 你真努力！</h1>
+            <p style="font-size: 24px; color: #555; margin-top: -10px; margin-bottom: 30px;">全部獨木橋都走完啦！</p>
+            <button onclick="restartGame()">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        // 遊戲情境設定
+        const levels = [
+            { char: '🐱', target: '🐟', bg: '#ffebee', border: '#ffcdd2' }, // 小貓過橋吃魚
+            { char: '🐶', target: '🦴', bg: '#e8f5e9', border: '#a5d6a7' }, // 小狗過橋吃骨頭
+            { char: '🐭', target: '🧀', bg: '#fff8e1', border: '#ffe082' }  // 小老鼠過橋吃芝士
+        ];
+
+        let currentLevel = 0;
+        let isDrawing = false;
+        let startValid = false; // 確認是否從主角身上開始畫
+
+        // DOM 元素
+        const canvas = document.getElementById('drawing-canvas');
+        const ctx = canvas.getContext('2d');
+        const charEl = document.getElementById('character');
+        const targetEl = document.getElementById('target');
+        const progressEl = document.getElementById('progress');
+        const gameContainer = document.getElementById('game-container');
+        const endScreen = document.getElementById('end-screen');
+        const successTick = document.getElementById('success-tick');
+
+        // 初始化 Canvas 尺寸
+        function resizeCanvas() {
+            canvas.width = gameContainer.offsetWidth;
+            canvas.height = gameContainer.offsetHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 載入關卡
+        function loadLevel() {
+            if (currentLevel >= levels.length) {
+                endScreen.classList.add('active');
+                return;
+            }
+
+            const levelData = levels[currentLevel];
+            charEl.textContent = levelData.char;
+            targetEl.textContent = levelData.target;
+            gameContainer.style.backgroundColor = levelData.bg;
+            gameContainer.style.borderColor = levelData.border;
+            progressEl.textContent = `進度: ${currentLevel + 1} / ${levels.length}`;
+            
+            // 重置狀態
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            charEl.classList.add('blink'); // 重新閃爍提示小朋友點擊
+            isDrawing = false;
+            startValid = false;
+        }
+
+        // 取得滑鼠或手指在 Canvas 上的準確座標
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        // 檢查座標是否在指定的 DOM 元素範圍內 (加上緩衝區以便小朋友容易點擊)
+        function isInsideElement(x, y, element) {
+            const rect = element.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            
+            // 計算元素在 canvas 內的相對座標
+            const elLeft = rect.left - canvasRect.left - 30; // 30px 緩衝
+            const elRight = rect.right - canvasRect.left + 30;
+            const elTop = rect.top - canvasRect.top - 30;
+            const elBottom = rect.bottom - canvasRect.top + 30;
+
+            return x >= elLeft && x <= elRight && y >= elTop && y <= elBottom;
+        }
+
+        // 開始畫線
+        function startDraw(e) {
+            e.preventDefault(); // 防止滾動
+            const pos = getPointerPos(e);
+
+            // 必須從左側主角附近開始畫
+            if (isInsideElement(pos.x, pos.y, charEl)) {
+                isDrawing = true;
+                startValid = true;
+                charEl.classList.remove('blink'); // 點擊後停止閃爍
+                
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                ctx.lineWidth = 18; // 適合小朋友的粗線條
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#ff9800'; // 鮮豔的橘色線條
+            }
+        }
+
+        // 畫線過程中
+        function draw(e) {
+            e.preventDefault();
+            if (!isDrawing || !startValid) return;
+
+            const pos = getPointerPos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+
+            // 檢查是否畫到右側目標
+            if (isInsideElement(pos.x, pos.y, targetEl)) {
+                levelComplete();
+            }
+        }
+
+        // 結束畫線
+        function endDraw(e) {
+            e.preventDefault();
+            if (!isDrawing) return;
+            
+            isDrawing = false;
+            
+            // 如果沒有到達目的地，清空畫布讓小朋友重試
+            if (startValid) {
+                const pos = getPointerPos(e);
+                if (!isInsideElement(pos.x, pos.y, targetEl)) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    charEl.classList.add('blink'); // 重新提示
+                    startValid = false;
+                }
+            }
+        }
+
+        // 關卡完成邏輯
+        function levelComplete() {
+            isDrawing = false;
+            startValid = false;
+            
+            // 顯示過關打勾動畫
+            successTick.style.display = 'block';
+            
+            setTimeout(() => {
+                successTick.style.display = 'none';
+                currentLevel++;
+                loadLevel();
+            }, 1200); // 1.2秒後進入下一關
+        }
+
+        // 重新開始遊戲
+        function restartGame() {
+            currentLevel = 0;
+            endScreen.classList.remove('active');
+            loadLevel();
+        }
+
+        // 註冊事件監聽器 (支援滑鼠與觸控螢幕)
+        canvas.addEventListener('mousedown', startDraw, { passive: false });
+        canvas.addEventListener('mousemove', draw, { passive: false });
+        canvas.addEventListener('mouseup', endDraw, { passive: false });
+        canvas.addEventListener('mouseleave', endDraw, { passive: false });
+
+        canvas.addEventListener('touchstart', startDraw, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', endDraw, { passive: false });
+
+        // 初始化第一關
+        loadLevel();
+
+    </script>
+</body>
+</html>
