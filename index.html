@@ -7,7 +7,7 @@
     <style>
         * {
             box-sizing: border-box;
-            user-select: none; /* 防止選取文字 */
+            user-select: none;
             -webkit-user-select: none;
         }
         body {
@@ -22,21 +22,30 @@
             font-family: "Microsoft JhengHei", "PingFang HK", sans-serif;
         }
 
-        /* 遊戲主容器，嚴格按原圖比例 1414:2000 設計 */
         #game-container {
             position: relative;
             width: 100%;
-            max-width: 500px; /* 電腦版最大寬度 */
+            max-width: 500px;
             aspect-ratio: 1414 / 2000;
-            background-size: cover; /* 確保背景填滿 */
-            background-repeat: no-repeat;
-            background-position: center;
-            background-color: #fff;
+            background-color: #fff; /* 底色保持白色，讓背景圖透出時顯得明亮 */
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            touch-action: none; /* 關鍵：防止手機螢幕滑動與畫畫誤觸 */
+            touch-action: none;
         }
 
-        /* 畫布：用於繪製半透明提示與運筆軌跡 */
+        /* 獨立的背景圖層，設定 60% 透明度 */
+        #bg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.6; 
+            z-index: 1;
+        }
+
         #draw-canvas {
             position: absolute;
             top: 0;
@@ -44,31 +53,28 @@
             width: 100%;
             height: 100%;
             z-index: 2;
-            pointer-events: none; /* 讓點擊穿透到動物身上 */
+            pointer-events: none;
         }
 
-        /* 可拖曳的小動物 (起點) */
         #start-item {
             position: absolute;
-            width: 18%; /* 配合木頭比例調整大小 */
+            width: 36%; 
             z-index: 4;
             cursor: pointer;
             transform: translate(-50%, -50%);
             transition: transform 0.1s;
         }
         #start-item:active {
-            transform: translate(-50%, -50%) scale(1.1); /* 按下時稍微放大，增加回饋感 */
+            transform: translate(-50%, -50%) scale(1.05); 
         }
 
-        /* 目標食物 (終點) */
         #end-item {
             position: absolute;
-            width: 18%; /* 配合木頭比例調整大小 */
+            width: 36%; 
             z-index: 3;
             transform: translate(-50%, -50%);
         }
 
-        /* 閃爍圓點提示 */
         #hint-dot {
             position: absolute;
             width: 70px;
@@ -86,7 +92,6 @@
             100% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
         }
 
-        /* 彈出視窗 UI */
         #overlay {
             position: absolute;
             top: 0;
@@ -133,7 +138,7 @@
             border-radius: 30px;
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            display: none; /* 預設隱藏，最後一關才顯示 */
+            display: none;
             font-weight: bold;
         }
         button:active {
@@ -144,15 +149,13 @@
 <body>
 
 <div id="game-container">
+    <!-- 新增背景圖層 -->
+    <div id="bg-layer"></div>
     <canvas id="draw-canvas"></canvas>
-    <!-- 閃爍提示點 -->
     <div id="hint-dot"></div>
-    <!-- 終點圖案 -->
     <img id="end-item" src="" alt="食物">
-    <!-- 起點圖案 -->
     <img id="start-item" src="" alt="動物">
     
-    <!-- 回饋彈窗 -->
     <div id="overlay">
         <div id="message">✨ 你真努力！</div>
         <div id="progress-text">進度: 1/3</div>
@@ -161,22 +164,20 @@
 </div>
 
 <script>
-    // 遊戲關卡設定 (精準對應你提供的檔名)
     const stages = [
-        { bg: 'BG1.png', startSrc: '1.png', endSrc: '2.png' }, // 頁一：小狗找骨頭
-        { bg: 'BG1.png', startSrc: '5.png', endSrc: '6.png' }, // 頁二：小羊找草堆
-        { bg: 'BG2.png', startSrc: '3.png', endSrc: '4.png' }  // 頁三：小貓找魚
+        { bg: 'BG1.png', startSrc: '1.png', endSrc: '2.png' }, 
+        { bg: 'BG1.png', startSrc: '5.png', endSrc: '6.png' }, 
+        { bg: 'BG2.png', startSrc: '3.png', endSrc: '4.png' }  
     ];
 
     let currentStage = 0;
     
-    // 木頭在背景中的精準位置設定
-    const START_X_PCT = 0.18; // 起點在木頭左側，約 18% 寬度處
-    const END_X_PCT = 0.82;   // 終點在木頭右側，約 82% 寬度處
-    const Y_PCT = 0.68;       // 木頭的垂直高度大約在畫面的 68% 處
+    const START_X_PCT = 0.18; 
+    const END_X_PCT = 0.82;   
+    const Y_PCT = 0.68;       
 
-    // 取得 DOM 元素
     const container = document.getElementById('game-container');
+    const bgLayer = document.getElementById('bg-layer'); // 取得背景圖層
     const canvas = document.getElementById('draw-canvas');
     const ctx = canvas.getContext('2d');
     const startItem = document.getElementById('start-item');
@@ -191,10 +192,10 @@
     let startPos = { x: 0, y: 0 };
     let containerRect;
 
-    // 初始化關卡
     function initStage() {
         const stageData = stages[currentStage];
-        container.style.backgroundImage = `url('${stageData.bg}')`;
+        // 將背景圖套用在 bgLayer 上，而不是 container
+        bgLayer.style.backgroundImage = `url('${stageData.bg}')`;
         startItem.src = stageData.startSrc;
         endItem.src = stageData.endSrc;
 
@@ -203,21 +204,18 @@
         drawHintLine();
     }
 
-    // 確保 Canvas 尺寸與背景容器完全重合
     function resizeCanvas() {
         containerRect = container.getBoundingClientRect();
         canvas.width = containerRect.width;
         canvas.height = containerRect.height;
     }
     
-    // 當視窗大小改變時，重新計算比例
     window.addEventListener('resize', () => {
         resizeCanvas();
         positionElements();
         drawHintLine();
     });
 
-    // 根據百分比佈置起點與終點位置
     function positionElements() {
         const startX = canvas.width * START_X_PCT;
         const endX = canvas.width * END_X_PCT;
@@ -234,21 +232,20 @@
         hintDot.style.top = y + 'px';
     }
 
-    // 繪製與木頭重疊的半透明提示路徑
     function drawHintLine() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.beginPath();
-        ctx.setLineDash([15, 20]); // 虛線效果
+        ctx.setLineDash([15, 20]); 
         ctx.moveTo(canvas.width * START_X_PCT, canvas.height * Y_PCT);
         ctx.lineTo(canvas.width * END_X_PCT, canvas.height * Y_PCT);
         ctx.lineWidth = 14;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; // 半透明白色提示線
+        // 背景調淡後，提示線可以稍微加深一點點，確保幼兒看清楚
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; 
         ctx.lineCap = 'round';
         ctx.stroke();
-        ctx.setLineDash([]); // 恢復實線供兒童運筆使用
+        ctx.setLineDash([]); 
     }
 
-    // 處理互動事件
     function getPointerPos(e) {
         let clientX = e.touches ? e.touches[0].clientX : e.clientX;
         let clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -268,23 +265,18 @@
         e.preventDefault();
         
         let pos = getPointerPos(e);
-        
-        // 強制 Y 軸鎖定，讓 K2 幼兒更容易畫出完美的橫線 "一"
         let constrainedY = startPos.y; 
-        
-        // 限制不能往左邊拉過頭
         let constrainedX = Math.max(startPos.x, pos.x);
         
         startItem.style.left = constrainedX + 'px';
         startItem.style.top = constrainedY + 'px'; 
 
-        // 即時繪製兒童的運筆軌跡
-        drawHintLine(); // 重繪底線
+        drawHintLine(); 
         ctx.beginPath();
         ctx.moveTo(startPos.x, startPos.y);
         ctx.lineTo(constrainedX, constrainedY);
         ctx.lineWidth = 14;
-        ctx.strokeStyle = '#FF5722'; // 運筆軌跡顏色 (亮橘色)
+        ctx.strokeStyle = '#FF5722'; 
         ctx.lineCap = 'round';
         ctx.stroke();
     }
@@ -296,20 +288,17 @@
         let currentLeft = parseFloat(startItem.style.left);
         let targetLeft = canvas.width * END_X_PCT;
 
-        // 判斷是否拉到接近終點 (允許誤差範圍)
         if (Math.abs(currentLeft - targetLeft) < 50 || currentLeft >= targetLeft) {
             stageComplete();
         } else {
-            // 如果沒拉到終點，彈回起點重試
             startItem.style.transition = 'left 0.4s ease-out, top 0.4s ease-out';
             startItem.style.left = startPos.x + 'px';
             startItem.style.top = startPos.y + 'px';
             setTimeout(() => { startItem.style.transition = 'transform 0.1s'; }, 400);
-            drawHintLine(); // 清除畫了一半的軌跡
+            drawHintLine(); 
         }
     }
 
-    // 綁定事件 (同時支援滑鼠與觸控)
     startItem.addEventListener('mousedown', handleStart);
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', handleEnd);
@@ -318,12 +307,10 @@
     document.addEventListener('touchmove', handleMove, {passive: false});
     document.addEventListener('touchend', handleEnd);
 
-    // 過關邏輯
     function stageComplete() {
         currentStage++;
         
         if (currentStage < stages.length) {
-            // 單關完成
             message.innerText = '✨ 你真努力！';
             progressText.innerText = `進度: ${currentStage} / 3`;
             restartBtn.style.display = 'none';
@@ -332,10 +319,9 @@
             setTimeout(() => {
                 overlay.classList.remove('show');
                 initStage();
-            }, 2000); // 顯示 2 秒後自動進入下一關
+            }, 2000); 
             
         } else {
-            // 全部完成 (正向讚賞)
             message.innerText = '🎉 太棒了！任務全部完成！你做得非常好！';
             progressText.innerText = `進度: 3 / 3`;
             restartBtn.style.display = 'block';
@@ -349,9 +335,7 @@
         initStage();
     }
 
-    // 啟動遊戲
     window.onload = () => {
-        // 微小延遲確保圖片與容器正確載入後再初始化
         setTimeout(initStage, 150); 
     };
 </script>
