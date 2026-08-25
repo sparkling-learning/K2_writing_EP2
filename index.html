@@ -164,18 +164,17 @@
 <script>
     // 基準尺寸: 36%
     // 1.png: 36%
-    // 2.png (縮小20%): 36% * 0.8 = 28.8%
+    // 2.png (設定至20%): 20%
     // 3.png (先前設定縮小30%): 25.2%
-    // 4.png (縮小至50%): 36% * 0.5 = 18%
-    // 5.png (加大10%): 36% * 1.1 = 39.6%
-    // 6.png (設定至20%): 20%
+    // 4.png (設定至10%): 10%
+    // 5.png (縮小30%): 36% * 0.7 = 25.2%
+    // 6.png (先前設定至20%): 20%
     
-    // yPct 調整至 0.63 (微微上移)
-    // 第一、二關終點設在 0.82；第三關終點設在 0.72 (放在池塘左側)
+    // 頁一、頁二 yPct 下移 5% 調整至 0.63；頁三 yPct 下移 5% 調整至 0.65
     const stages = [
-        { bg: 'BG1.png', startSrc: '1.png', endSrc: '2.png', startSize: '36%', endSize: '28.8%', startX: 0.18, endX: 0.82, yPct: 0.63 }, 
-        { bg: 'BG1.png', startSrc: '5.png', endSrc: '6.png', startSize: '39.6%', endSize: '20%', startX: 0.18, endX: 0.82, yPct: 0.63 }, 
-        { bg: 'BG2.png', startSrc: '3.png', endSrc: '4.png', startSize: '25.2%', endSize: '18%', startX: 0.18, endX: 0.72, yPct: 0.63 }  
+        { bg: 'BG1.png', startSrc: '1.png', endSrc: '2.png', startSize: '36%', endSize: '20%', startX: 0.18, endX: 0.82, yPct: 0.63 }, 
+        { bg: 'BG1.png', startSrc: '5.png', endSrc: '6.png', startSize: '25.2%', endSize: '20%', startX: 0.18, endX: 0.82, yPct: 0.63 }, 
+        { bg: 'BG2.png', startSrc: '3.png', endSrc: '4.png', startSize: '25.2%', endSize: '10%', startX: 0.18, endX: 0.72, yPct: 0.65 }  
     ];
 
     let currentStage = 0;
@@ -271,7 +270,6 @@
         if (!isDragging) return;
         e.preventDefault();
         
-        const stageData = stages[currentStage];
         let pos = getPointerPos(e);
         let constrainedY = startPos.y; 
         let constrainedX = Math.max(startPos.x, pos.x);
