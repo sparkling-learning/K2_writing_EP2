@@ -27,12 +27,11 @@
             width: 100%;
             max-width: 500px;
             aspect-ratio: 1414 / 2000;
-            background-color: #fff; /* 底色保持白色，讓背景圖透出時顯得明亮 */
+            background-color: #fff;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             touch-action: none;
         }
 
-        /* 獨立的背景圖層，設定 60% 透明度 */
         #bg-layer {
             position: absolute;
             top: 0;
@@ -56,9 +55,9 @@
             pointer-events: none;
         }
 
+        /* 移除固定寬度，改由 JavaScript 動態控制 */
         #start-item {
             position: absolute;
-            width: 36%; 
             z-index: 4;
             cursor: pointer;
             transform: translate(-50%, -50%);
@@ -70,7 +69,6 @@
 
         #end-item {
             position: absolute;
-            width: 36%; 
             z-index: 3;
             transform: translate(-50%, -50%);
         }
@@ -149,7 +147,6 @@
 <body>
 
 <div id="game-container">
-    <!-- 新增背景圖層 -->
     <div id="bg-layer"></div>
     <canvas id="draw-canvas"></canvas>
     <div id="hint-dot"></div>
@@ -164,10 +161,14 @@
 </div>
 
 <script>
+    // 基準尺寸為 36%，根據您的需求進行縮小計算：
+    // 縮小 30% = 36% * 0.7 = 25.2%
+    // 縮小 60% = 36% * 0.4 = 14.4%
+    // 1.png 無特別指示，維持原定 36%
     const stages = [
-        { bg: 'BG1.png', startSrc: '1.png', endSrc: '2.png' }, 
-        { bg: 'BG1.png', startSrc: '5.png', endSrc: '6.png' }, 
-        { bg: 'BG2.png', startSrc: '3.png', endSrc: '4.png' }  
+        { bg: 'BG1.png', startSrc: '1.png', endSrc: '2.png', startSize: '36%', endSize: '25.2%' }, 
+        { bg: 'BG1.png', startSrc: '5.png', endSrc: '6.png', startSize: '25.2%', endSize: '14.4%' }, 
+        { bg: 'BG2.png', startSrc: '3.png', endSrc: '4.png', startSize: '25.2%', endSize: '25.2%' }  
     ];
 
     let currentStage = 0;
@@ -177,7 +178,7 @@
     const Y_PCT = 0.68;       
 
     const container = document.getElementById('game-container');
-    const bgLayer = document.getElementById('bg-layer'); // 取得背景圖層
+    const bgLayer = document.getElementById('bg-layer'); 
     const canvas = document.getElementById('draw-canvas');
     const ctx = canvas.getContext('2d');
     const startItem = document.getElementById('start-item');
@@ -194,10 +195,14 @@
 
     function initStage() {
         const stageData = stages[currentStage];
-        // 將背景圖套用在 bgLayer 上，而不是 container
         bgLayer.style.backgroundImage = `url('${stageData.bg}')`;
+        
+        // 載入圖片並動態套用專屬的尺寸比例
         startItem.src = stageData.startSrc;
+        startItem.style.width = stageData.startSize;
+        
         endItem.src = stageData.endSrc;
+        endItem.style.width = stageData.endSize;
 
         resizeCanvas();
         positionElements();
@@ -235,15 +240,14 @@
     function drawHintLine() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.beginPath();
-        ctx.setLineDash([15, 20]); 
         ctx.moveTo(canvas.width * START_X_PCT, canvas.height * Y_PCT);
         ctx.lineTo(canvas.width * END_X_PCT, canvas.height * Y_PCT);
-        ctx.lineWidth = 14;
-        // 背景調淡後，提示線可以稍微加深一點點，確保幼兒看清楚
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; 
+        
+        // 將虛線改為半透明的「粗實線」，就像一條引導幼兒的專用軌道
+        ctx.lineWidth = 30; // 加粗線條
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; 
         ctx.lineCap = 'round';
         ctx.stroke();
-        ctx.setLineDash([]); 
     }
 
     function getPointerPos(e) {
@@ -275,7 +279,9 @@
         ctx.beginPath();
         ctx.moveTo(startPos.x, startPos.y);
         ctx.lineTo(constrainedX, constrainedY);
-        ctx.lineWidth = 14;
+        
+        // 兒童運筆畫出的實際線條（維持較細的亮橘色）
+        ctx.lineWidth = 14; 
         ctx.strokeStyle = '#FF5722'; 
         ctx.lineCap = 'round';
         ctx.stroke();
